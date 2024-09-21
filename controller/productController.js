@@ -1,5 +1,7 @@
 const productModel = require('../models/productModel')
+const orderModel = require('../models/orderModel')
 const fs = require('fs')
+
 
 exports.createProductController = async (req,res) => {
  try{
@@ -37,8 +39,14 @@ exports.createProductController = async (req,res) => {
 
 // get all products
 exports.getProducts = async(req,res)=>{
+  const searcKey = req.query.search
+      const query = {
+        $or :[
+        {name: {$regex: searcKey, $options : "i" }},
+        {description: {$regex: searcKey, $options:"i"}}
+      ]}
     try{
-     const products = await productModel.find({}).select("-photo").limit(12).sort({createdAt:-1})
+     const products = await productModel.find(query).select("-photo").limit(12).sort({createdAt:-1})
      res.status(200).send({
         success: true,
         message: 'All products',
@@ -130,7 +138,7 @@ exports.updateProductController = async (req, res) => {
       case photo && photo.size > 1000000:
         return res
           .status(500)
-          .send({ error: "photo is Required and should be less then 1mb" });
+          .send({ error: "photo is Required and should be less than 1mb" });
     }
 
     const products = await productModel.findByIdAndUpdate(
@@ -155,5 +163,47 @@ exports.updateProductController = async (req, res) => {
       error,
       message: "Error in Updte product",
     });
+  }
+};
+
+// search product
+exports.searchProductController = async(req,res)=>{
+  try{
+    const {keyword} = req.params
+    const result = await productModel.find({
+      $or :[
+        {name: {$regex: keyword, $options : "i" }},
+        {description: {$regex: keyword, $options:"i"}}
+      ]
+    }).select('-photo')
+    res.json(result)
+  }catch(err){
+    console.log(err);
+    res.status(500).send({
+      success:false,
+      message:'Error in searching product',
+      err
+    })
+  }
+}
+
+
+// order
+exports.orderController = async (req, res) => {
+  try {
+    const cart = req.body;
+    let total = 0;
+    cart.map((i) => {
+      total += i.price;
+    });     
+          const order = new orderModel({
+            products: cart,
+            buyer: req.params.id,
+            payment: total
+          }).save();
+          res.status(201).json({ ok: true,order });
+  } 
+  catch (error) {
+    console.log(error);
   }
 };

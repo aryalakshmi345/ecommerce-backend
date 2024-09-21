@@ -23,4 +23,10 @@ router.delete("/product-delete/:pid", productController.deleteProductController)
 // update product
 router.put("/products/update/:id",requireSignIn,isAdmin,formidable(), productController.updateProductController)
 
+// search product
+router.get("/search/:keyword",productController.searchProductController)
+
+// post order
+router.post("/user/order/:id",productController.orderController)
+
 module.exports = router

@@ -9,5 +9,11 @@ router.post('/add-to-cart/:id',requireSignIn,cartController.addToCart)
 // get cart products
 router.get('/get-cart-products/:id',requireSignIn,cartController.getCartProduct)
 
+// delete cart products
+router.delete('/delete-cart-product/:id',cartController.removeCartProduct)
+
+// delete user cart products
+router.delete('/delete-user-cart/:id',cartController.removeUserCartProduct)
+
 
 module.exports = router
