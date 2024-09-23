@@ -56,8 +56,11 @@ router.get("/admin/get-all-orders",authController.getAllOrders)
 // update order status
 router.put("/admin/update-order-status/:id",requireSignIn, authController.orderStatusController)
 
-// router.post('/send-register-otp', authController.sendRegisterOTP)
+// forget password
+router.post('/user/forget-password',authController.forgetPasswordontroller)
 
+// reset password
+router.post('/user/reset-password',authController.resetPassword)
 
 
 module.exports = router

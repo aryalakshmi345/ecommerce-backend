@@ -6,6 +6,10 @@ const jwt = require('jsonwebtoken')
 const fs = require('fs')
 const otpGenerator = require('otp-generator')
 const sendOtpVerificationEmail = require('../helpers/mailservice')
+const nodemailer = require('nodemailer')
+const bcrypt = require('bcrypt')
+
+
 
 
 exports.registerController = async(req,res) =>{
@@ -354,41 +358,71 @@ exports.orderStatusController = async (req, res) => {
   }
 };
 
+// forget password controller
+exports.forgetPasswordontroller = async(req,res)=>{
+  const {email} = req.body
+  try{
+    const user = await userModel.findOne({email})
+  if(!user){
+    res.status(404).json({message:"User not found"})
+  }else{
+    const resetToken = jwt.sign({id:user._id},"supersecretkey12345",{expiresIn:'10m'})
 
-// exports.sendRegisterOTP = async (req, res) => {
-//   console.log("Inside controller");
-  
-//   try {
-//     const { email } = req.body;
-//     if (!email) return res.status(400).json({ message: 'email field is required', success: false })
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`
+
+    // Send the reset email
+    const transporter = nodemailer.createTransport({
+      service: 'Gmail', // You can use other providers
+      auth: {
+        user: process.env.SENDER_EMAIL,
+        pass: process.env.SENDER_EMAIL_PASSWORD,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.SENDER_EMAIL,
+      to: user.email,
+      subject: 'Password Reset Request',
+      html: `<p>You requested a password reset</p>
+             <p>Click this <a href="${resetUrl}">link</a> to reset your password. This link is valid for 10 minutes.</p>`,
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.status(200).json({message:"Reset link sent to your email address."})
+  }
+}
+catch(err){
+  res.status(500).json('Internal Server Error')
+  console.log(err);
+}
+}
+
+// reset password
+exports.resetPassword = async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  try {
+    const decoded = jwt.verify(token,"supersecretkey12345");
+    const user = await userModel.findById(decoded.id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Hash the new password
+    const saltRounds = 10
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    user.password = hashedPassword;
+    await user.save();
+
+    res.status(200).json({ message: 'Password updated successfully' });
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(400).json({ message: 'Token has expired' });
+    }
+    res.status(500).json({ message: 'Server error', error });
+    console.log(error);
     
-
-
-//     const otp = otpGenerator.generate(6, { digits: true, lowerCaseAlphabets: false, upperCaseAlphabets: false, specialChars: false })
-//     const hashedOTP = await bcrypt.hash(otp, 12)
-//     const newOTP = await OTP.create({ email, otp: hashedOTP, name: 'register_otp' })
-
-//     var transporter = nodemailer.createTransport({
-//         service: 'Gmail',
-//         auth: {
-//             user: process.env.SENDER_EMAIL,
-//             pass: process.env.SENDER_EMAIL_PASSWORD
-//         }
-//     });
-//     const mailOptions = {
-//         from: process.env.SENDER_EMAIL,
-//         to: email,
-//         subject: 'Verification',
-//         html: `<p>Your OTP code is ${otp}</p>`
-//     };
-//     transporter.sendMail(mailOptions, function (err, info) {
-//         if (err) console.log(err)
-//         else         console.log(info);
-//     });
-
-//     res.status(200).json({ result: newOTP, message: 'register_otp send successfully', success: true })
-// }
-// catch (error) {
-//     res.status(404).json({ message: 'error in sendRegisterOTP - controllers/user.js', error, success: false })
-// }
-// }
+  }
+};
